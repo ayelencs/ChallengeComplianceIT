@@ -2,12 +2,14 @@ print("Sistema de Gestión de Mails para Generar Reuniones Presenciales")
 
 print("Cargando tabla User managers.csv")
 
+#importe de librerias
 import csv
 import mysql.connector
 import json
 import os
 import smtplib
 
+#conexion a la base de datos mysql para carga del csv
 db = mysql.connector.connect(host='localhost',
     user='root',
     passwd='',
@@ -34,20 +36,24 @@ print(" ")
 print("Tabla datos_owners")
 print("(Classification, Base de datos, Owner_Email, Manager_Email)")
 
+#conexion a la base de datos mysql para carga del json
 db = mysql.connector.connect(host='localhost',
     user='root',
     passwd='',
     db='bd_ml')
 cursor = db.cursor()
 
+#codigo para serializar el json
 class FileItem(dict):
     def __init__(self, fname):
         dict.__init__(self, fname=fname)
-
+        
+#carga del archivo json
 file = os.path.abspath('dblist.json')
 json_data=open(file).read()
 json_obj = json.loads(json_data)
 
+#codigo sql para la carga en la base del archivo
 sql = """
     INSERT INTO db_list
     (
@@ -78,6 +84,8 @@ for dn_name in json_obj['db_list']:
     cursor.execute(sql, datosb)
 
 cursor.execute("""DROP TABLE datos_owners""")
+
+#se unen las dos tablas para traer solamente las bases con clasificacion alta 
 cursor.execute("""CREATE TABLE `Datos_owners` ( `Classification` VARCHAR(10) NOT NULL DEFAULT 'high' )
 SELECT dn_name, owner_email, user_manager
 FROM db_list
@@ -85,6 +93,8 @@ JOIN user_manager
 ON user_manager.user_id = db_list.owner_uid
 WHERE db_list.classification_confidentiality = "High" OR db_list.classification_integrity = "High" OR db_list.classification_availability = "High"
 """)
+
+#Comienzo del envio de los emails
 cursor.execute("SELECT * FROM datos_owners")
 
 myresult = cursor.fetchall()
@@ -92,8 +102,8 @@ myresult = cursor.fetchall()
 for x in myresult:
   print(x)
   origen = 'challengecomplianceayelen@gmail.com' #Direccion desde la cual se va a mandar el correo
-  co='"'
-  destino = co+x[3]+co #Direccion de destino
+  co='"' #comillas 
+  destino = co+x[3]+co #Direccion de destino se selecciona la columna 3 que tiene el correo
   msg= '\n Buenos dias, se requiere la confirmacion de que las siguientes bases de datos son de clasificacion alta.   Base de datos: %s            Challenge de Ayelen Chaglasian. ' #String que contiene el mensaje
   # Credenciales
   usuario = 'challengecomplianceayelen'
@@ -113,5 +123,3 @@ print("El email fue enviado a los respectivos responsables")
 db.commit()
 cursor.close()
 db.close()
-
-
